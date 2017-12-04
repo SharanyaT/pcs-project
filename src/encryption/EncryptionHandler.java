@@ -18,7 +18,20 @@ import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
 
 // https://gist.github.com/zcdziura/7652286
-// https://stackoverflow.com/questions/13721579/jce-cannot-authenticate-the-provider-bc-in-java-swing-application
+/*
+
+Create /lib folder and add most recent BouncyCastle jar from http://www.bouncycastle.org/latest_releases.html
+Make sure your IDE is configured to use the /lib folder. Don't try to automatically get it through Maven because
+it wasn't signed there for some reason and Java will refuse to run unsigned crypto libraries.
+
+Download JCE from http://www.oracle.com/technetwork/java/javase/downloads/jce-7-download-432124.html and put the two
+.jar files in $JAVA_HOME/jre/lib/security (overwrite the ones already there) because Java will refuse to run anything
+more than most basic crypto out of the box because it's apparently illegal in some countries.
+
+Basically Java will refuse to run your code because it hates you.
+
+ */
+
 
 
 public class EncryptionHandler {

@@ -2,7 +2,6 @@ package pcsClient;
 
 import encryption.EncryptionHandler;
 import encryption.OneTimeKeyQueue;
-import org.whispersystems.curve25519.Curve25519KeyPair;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -46,8 +45,8 @@ public class Client {
     
     public void connect(String ip, short port) throws ConnectException, UnknownHostException, IOException {
         server = new Socket(ip, port);
-        identityKeyPair = EncryptionHandler.generateKeyPair();
-        signedPreKey = EncryptionHandler.generateKeyPair();
+        identityKeyPair = EncryptionHandler.generateECKeys();
+        signedPreKey = EncryptionHandler.generateECKeys();
         oneTimeKeyQueue = new OneTimeKeyQueue();
         try {
             
@@ -75,7 +74,7 @@ public class Client {
     
     public void write(String msg) {
         try{
-            String encrypted = EncryptionHandler.encrypt(msg, null).toString();
+            String encrypted = EncryptionHandler.encryptString(null, msg);
         } catch (Exception e){
             System.out.println("An exception occurred.");
             e.printStackTrace();

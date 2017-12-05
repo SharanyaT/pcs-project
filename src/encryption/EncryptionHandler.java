@@ -1,21 +1,19 @@
 package encryption;
 
-import java.io.UnsupportedEncodingException;
-import java.security.*;
-import java.util.Enumeration;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.KeyAgreement;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
-import javax.crypto.ShortBufferException;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
+import org.bouncycastle.util.encoders.Base64;
+
+import javax.crypto.Cipher;
+import javax.crypto.KeyAgreement;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.UnsupportedEncodingException;
+import java.security.*;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 
 // https://gist.github.com/zcdziura/7652286
 /*
@@ -71,8 +69,7 @@ public class EncryptionHandler {
             KeyPair keyPair = keyPairGenerator.generateKeyPair();
 
             return keyPair;
-        } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException
-                | NoSuchProviderException e) {
+        } catch (GeneralSecurityException e) {
             e.printStackTrace();
             return null;
         }
@@ -87,9 +84,7 @@ public class EncryptionHandler {
 
             SecretKey key = keyAgreement.generateSecret("AES");
             return key;
-        } catch (InvalidKeyException | NoSuchAlgorithmException
-                | NoSuchProviderException e) {
-            // TODO Auto-generated catch block
+        } catch (GeneralSecurityException e) {
             e.printStackTrace();
             return null;
         }
@@ -109,11 +104,7 @@ public class EncryptionHandler {
             encryptLength += cipher.doFinal(cipherText, encryptLength);
 
             return bytesToHex(cipherText);
-        } catch (NoSuchAlgorithmException | NoSuchProviderException
-                | NoSuchPaddingException | InvalidKeyException
-                | InvalidAlgorithmParameterException
-                | UnsupportedEncodingException | ShortBufferException
-                | IllegalBlockSizeException | BadPaddingException e) {
+        } catch (GeneralSecurityException | UnsupportedEncodingException  e) {
             e.printStackTrace();
             return null;
         }
@@ -135,11 +126,7 @@ public class EncryptionHandler {
             decryptLength += cipher.doFinal(plainText, decryptLength);
 
             return new String(plainText, "UTF-8");
-        } catch (NoSuchAlgorithmException | NoSuchProviderException
-                | NoSuchPaddingException | InvalidKeyException
-                | InvalidAlgorithmParameterException
-                | IllegalBlockSizeException | BadPaddingException
-                | ShortBufferException | UnsupportedEncodingException e) {
+        } catch (GeneralSecurityException | UnsupportedEncodingException e) {
             e.printStackTrace();
             return null;
         }
@@ -171,5 +158,67 @@ public class EncryptionHandler {
                     .digit(string.charAt(i + 1), 16));
         }
         return data;
+    }
+
+    public static PrivateKey privateKeyFromString(String key64) {
+        byte[] clear = Base64.decode(key64);
+        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(clear);
+        KeyFactory fact;
+        PrivateKey priv;
+        try {
+            fact = KeyFactory.getInstance("DSA");
+            priv = fact.generatePrivate(keySpec);
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+            return null;
+        }
+        Arrays.fill(clear, (byte) 0);
+        return priv;
+    }
+
+    public static PublicKey publicKeyFromString(String stored)  {
+        byte[] data = Base64.decode(stored);
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(data);
+        KeyFactory fact;
+        PublicKey pub;
+        try {
+            fact = KeyFactory.getInstance("DSA");
+            pub = fact.generatePublic(spec);
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+            return null;
+        }
+        return pub;
+    }
+
+    public static String privateKeyToString(PrivateKey priv) {
+        KeyFactory fact;
+        PKCS8EncodedKeySpec spec;
+        byte[] packed;
+        String key64 = null;
+        try {
+            fact = KeyFactory.getInstance("DSA");
+            spec = fact.getKeySpec(priv, PKCS8EncodedKeySpec.class);
+            packed = spec.getEncoded();
+            key64 = new String(Base64.encode(packed));
+            Arrays.fill(packed, (byte) 0);
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        }
+        return key64;
+    }
+
+    public static String publicKeyToString(PublicKey publ) {
+        KeyFactory fact;
+        X509EncodedKeySpec spec;
+        String key = null;
+        try {
+            fact = KeyFactory.getInstance("DSA");
+            spec = fact.getKeySpec(publ, X509EncodedKeySpec.class);
+            key = new String(Base64.encode(spec.getEncoded()));
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        }
+        return key;
     }
 }

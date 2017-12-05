@@ -1,19 +1,27 @@
 package pcsServer;
 
+import encryption.EncryptionHandler;
+
+import javax.crypto.SecretKey;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 public class Session {
 	private String username;
 	private Socket socket;
 	private PrintWriter outputWriter;
 	private BufferedReader inputBuffer;
+	private KeyPair keyPair;
 
 	Session(Socket socket) {
+		this.keyPair = EncryptionHandler.generateECKeys();
 		this.socket = socket;
 		try {
 			inputBuffer = new BufferedReader(new InputStreamReader(this.socket.getInputStream()));
@@ -25,7 +33,8 @@ public class Session {
 	}
 
 	public void write(String message) {
-		outputWriter.println(message);
+		String decrypted = decryptMessage(message);
+		outputWriter.println(decrypted);
 		outputWriter.flush();
 	}
 
@@ -51,6 +60,22 @@ public class Session {
 		}
 		outputWriter.close();
 		return true;
+	}
+
+	PublicKey getPublicKey(){
+		return keyPair.getPublic();
+	}
+
+	String encryptMessage(String msg, PublicKey recipientPublic){
+		SecretKey secretKey = EncryptionHandler.generateSharedSecret(keyPair.getPrivate(), recipientPublic);
+		return EncryptionHandler.encryptString(secretKey, msg);
+	}
+
+	String decryptMessage(String msg){
+		String key = msg.split(":")[0];
+		PublicKey senderPublic = EncryptionHandler.publicKeyFromString(key);
+		SecretKey secretKey = EncryptionHandler.generateSharedSecret(keyPair.getPrivate(), senderPublic);
+		return EncryptionHandler.decryptString(secretKey, msg);
 	}
 
 	public void setUsername(String username) {

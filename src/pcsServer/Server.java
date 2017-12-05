@@ -1,5 +1,7 @@
 package pcsServer;
 
+import encryption.EncryptionHandler;
+
 import java.net.*;
 import java.util.ArrayList;
 import java.io.IOException;
@@ -159,14 +161,25 @@ class ClientHandler implements Runnable {
 		updateClientUserList();
 	}
 
-	private synchronized void broadcast(String message) 
-	{
-		//String toUsername = message.split(":")[0];
-        for (int i = 0; i < clientList.size(); i++) 
-        {
-        	//if(clientList.get(i).getUsername().equals(toUsername))
-        		clientList.get(i).write(message);
-        }
+	private synchronized void broadcast(String message) {
+		String[] parts = message.split(":");
+		String recipient = null;
+		if (parts.length > 1){
+			recipient = parts[0];
+			message = message.substring(recipient.length());
+		}
+		for (Session to: clientList){
+			// If no username is specified, broadcast to all users. Otherwise, only send to that user.
+			if (recipient == null || to.getUsername().equals(recipient)){
+				sendMessage(message, to);
+			}
+		}
+	}
+
+	private synchronized void sendMessage(String message, Session to){
+		String encrypted = client.encryptMessage(message, to.getPublicKey());
+		String msg = EncryptionHandler.publicKeyToString(client.getPublicKey()) + ":" + message;
+		to.write(encrypted);
 	}
 	
 	private synchronized void updateClientUserList() {

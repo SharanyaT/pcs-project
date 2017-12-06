@@ -1,8 +1,8 @@
 package encryption;
 
+import org.apache.commons.codec.binary.Base64;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
-import org.bouncycastle.util.encoders.Base64;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;
@@ -11,9 +11,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.UnsupportedEncodingException;
 import java.security.*;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Arrays;
 
 // https://gist.github.com/zcdziura/7652286
 /*
@@ -33,31 +31,7 @@ Basically Java will refuse to run your code because it hates you.
 
 
 public class EncryptionHandler {
-    public static byte[] iv = new SecureRandom().generateSeed(16);
-
-    public static void main(String[] args) {
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
-        String plainText = "Look mah, I'm a message!";
-        System.out.println("Original plaintext message: " + plainText);
-
-        // Initialize two key pairs
-        KeyPair keyPairA = generateECKeys();
-        KeyPair keyPairB = generateECKeys();
-
-        // Create two AES secret keys to encrypt/decrypt the message
-        SecretKey secretKeyA = generateSharedSecret(keyPairA.getPrivate(),
-                keyPairB.getPublic());
-        SecretKey secretKeyB = generateSharedSecret(keyPairB.getPrivate(),
-                keyPairA.getPublic());
-
-        // Encrypt the message using 'secretKeyA'
-        String cipherText = encryptString(secretKeyA, plainText);
-        System.out.println("Encrypted cipher text: " + cipherText);
-
-        // Decrypt the message using 'secretKeyB'
-        String decryptedPlainText = decryptString(secretKeyB, cipherText);
-        System.out.println("Decrypted cipher text: " + decryptedPlainText);
-    }
+    private static byte[] iv = new SecureRandom().generateSeed(16);
 
     public static KeyPair generateECKeys() {
         try {
@@ -132,7 +106,24 @@ public class EncryptionHandler {
         }
     }
 
-    public static String bytesToHex(byte[] data, int length) {
+    public static PublicKey publicKeyFromString(String stored)  {
+        byte[] keyBytes = Base64.decodeBase64(stored);
+        PublicKey pub = null;
+        try{
+            KeyFactory keyFactory = KeyFactory.getInstance("ECDH", "BC");
+            pub = keyFactory.generatePublic(new X509EncodedKeySpec(keyBytes));
+        } catch (GeneralSecurityException e){
+            e.printStackTrace();
+        }
+        return pub;
+    }
+
+    public static String publicKeyToString(PublicKey publ) {
+        return Base64.encodeBase64String(publ.getEncoded());
+    }
+
+
+    private static String bytesToHex(byte[] data, int length) {
         String digits = "0123456789ABCDEF";
         StringBuffer buffer = new StringBuffer();
 
@@ -146,11 +137,11 @@ public class EncryptionHandler {
         return buffer.toString();
     }
 
-    public static String bytesToHex(byte[] data) {
+    private static String bytesToHex(byte[] data) {
         return bytesToHex(data, data.length);
     }
 
-    public static byte[] hexToBytes(String string) {
+    private static byte[] hexToBytes(String string) {
         int length = string.length();
         byte[] data = new byte[length / 2];
         for (int i = 0; i < length; i += 2) {
@@ -160,65 +151,4 @@ public class EncryptionHandler {
         return data;
     }
 
-    public static PrivateKey privateKeyFromString(String key64) {
-        byte[] clear = Base64.decode(key64);
-        PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(clear);
-        KeyFactory fact;
-        PrivateKey priv;
-        try {
-            fact = KeyFactory.getInstance("DSA");
-            priv = fact.generatePrivate(keySpec);
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-            return null;
-        }
-        Arrays.fill(clear, (byte) 0);
-        return priv;
-    }
-
-    public static PublicKey publicKeyFromString(String stored)  {
-        byte[] data = Base64.decode(stored);
-        X509EncodedKeySpec spec = new X509EncodedKeySpec(data);
-        KeyFactory fact;
-        PublicKey pub;
-        try {
-            fact = KeyFactory.getInstance("DSA");
-            pub = fact.generatePublic(spec);
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-            return null;
-        }
-        return pub;
-    }
-
-    public static String privateKeyToString(PrivateKey priv) {
-        KeyFactory fact;
-        PKCS8EncodedKeySpec spec;
-        byte[] packed;
-        String key64 = null;
-        try {
-            fact = KeyFactory.getInstance("DSA");
-            spec = fact.getKeySpec(priv, PKCS8EncodedKeySpec.class);
-            packed = spec.getEncoded();
-            key64 = new String(Base64.encode(packed));
-            Arrays.fill(packed, (byte) 0);
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-        }
-        return key64;
-    }
-
-    public static String publicKeyToString(PublicKey publ) {
-        KeyFactory fact;
-        X509EncodedKeySpec spec;
-        String key = null;
-        try {
-            fact = KeyFactory.getInstance("DSA");
-            spec = fact.getKeySpec(publ, X509EncodedKeySpec.class);
-            key = new String(Base64.encode(spec.getEncoded()));
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-        }
-        return key;
-    }
 }

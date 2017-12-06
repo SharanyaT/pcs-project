@@ -1,190 +1,57 @@
 package encryption;
 
-import org.bouncycastle.jce.ECNamedCurveTable;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jce.spec.ECNamedCurveParameterSpec;
-import org.bouncycastle.util.encoders.Base64;
+import javax.crypto.SecretKey;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.PublicKey;
+import java.security.Security;
+import java.util.Arrays;
 
-import javax.crypto.*;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import java.io.UnsupportedEncodingException;
-import java.security.*;
-import java.security.spec.AlgorithmParameterSpec;
+import static encryption.EncryptionHandler.*;
 
 public class TestEncryptionHandler {
 
-
-    public static void main(String[] args){
-        String text = "pie";
-        String encrypted = new TestEncryptionHandler().encrypt(text);
-        System.out.println(encrypted);
+    public static void main(String[] args) throws Exception {
+        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        testEncryptDecrypt();
+        testEncodeKeys();
     }
 
-    String KEY_AES = "****************";
-    public String encrypt(String value) {
-        try {
-            byte[] key = KEY_AES.getBytes("UTF-8");
-            byte[] ivs = KEY_AES.getBytes("UTF-8");
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
-            AlgorithmParameterSpec paramSpec = new IvParameterSpec(ivs);
-            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, paramSpec);
-            byte[] encoded =  Base64.encode(cipher.doFinal(value.getBytes("UTF-8")));
-            return new String(encoded);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return null;
+    private static void testEncryptDecrypt(){
+        String plainText = "Look mah, I'm a message!";
+        System.out.println("Original plaintext message: " + plainText);
+
+        // Initialize two key pairs
+        KeyPair keyPairA = generateECKeys();
+        KeyPair keyPairB = generateECKeys();
+
+        // Create two AES secret keys to encrypt/decrypt the message
+        SecretKey secretKeyA = generateSharedSecret(keyPairA.getPrivate(),
+                keyPairB.getPublic());
+        SecretKey secretKeyB = generateSharedSecret(keyPairB.getPrivate(),
+                keyPairA.getPublic());
+
+        // Encrypt the message using 'secretKeyA'
+        String cipherText = encryptString(secretKeyA, plainText);
+        System.out.println("Encrypted cipher text: " + cipherText);
+
+        // Decrypt the message using 'secretKeyB'
+        String decryptedPlainText = decryptString(secretKeyB, cipherText);
+        System.out.println("Decrypted cipher text: " + decryptedPlainText);
+        assert plainText.equals(decryptedPlainText);
     }
 
-//    static {
-//        Security.removeProvider("SunEC");
-//        Security.removeProvider("SUN");
-//        Security.removeProvider("SunJSSE");
-//        // ...
-//        Security.addProvider(new BouncyCastleProvider());
-//    }
+    private static void testEncodeKeys() throws GeneralSecurityException {
 
-//    public static byte[] iv = new SecureRandom().generateSeed(16);
-//
-//    public static void main(String[] args) {
-//        Security.removeProvider("SunEC");
-//        Security.removeProvider("SUN");
-//        Security.removeProvider("SunJSSE");
-//        // ...
-//        Security.addProvider(new BouncyCastleProvider());
-//        String plainText = "Look mah, I'm a message!";
-//        System.out.println("Original plaintext message: " + plainText);
-//
-//        // Initialize two key pairs
-//        KeyPair keyPairA = generateECKeys();
-//        KeyPair keyPairB = generateECKeys();
-//
-//        // Create two AES secret keys to encrypt/decrypt the message
-//        SecretKey secretKeyA = generateSharedSecret(keyPairA.getPrivate(),
-//                keyPairB.getPublic());
-//        SecretKey secretKeyB = generateSharedSecret(keyPairB.getPrivate(),
-//                keyPairA.getPublic());
-//
-//        // Encrypt the message using 'secretKeyA'
-//        String cipherText = encryptString(secretKeyA, plainText);
-//        System.out.println("Encrypted cipher text: " + cipherText);
-//
-//        // Decrypt the message using 'secretKeyB'
-//        String decryptedPlainText = decryptString(secretKeyB, cipherText);
-//        System.out.println("Decrypted cipher text: " + decryptedPlainText);
-//    }
-//
-//    public static KeyPair generateECKeys() {
-//        try {
-//            ECNamedCurveParameterSpec parameterSpec = ECNamedCurveTable.getParameterSpec("brainpoolp256r1");
-//            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(
-//                    "ECDH", "BC");
-//
-//            keyPairGenerator.initialize(parameterSpec);
-//            KeyPair keyPair = keyPairGenerator.generateKeyPair();
-//
-//            return keyPair;
-//        } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException
-//                | NoSuchProviderException e) {
-//            e.printStackTrace();
-//            return null;
-//        }
-//    }
-//
-//    public static SecretKey generateSharedSecret(PrivateKey privateKey,
-//                                                 PublicKey publicKey) {
-//        try {
-//            KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH", "BC");
-//            keyAgreement.init(privateKey);
-//            keyAgreement.doPhase(publicKey, true);
-//
-//            SecretKey key = keyAgreement.generateSecret("AES");
-//            return key;
-//        } catch (InvalidKeyException | NoSuchAlgorithmException
-//                | NoSuchProviderException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//            return null;
-//        }
-//    }
-//
-//    public static String encryptString(SecretKey key, String plainText) {
-//        try {
-//            IvParameterSpec ivSpec = new IvParameterSpec(iv);
-//            Cipher cipher = Cipher.getInstance("AES/GCM/NOPADDING", "BC");
-//            byte[] plainTextBytes = plainText.getBytes("UTF-8");
-//            byte[] cipherText;
-//
-//            cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
-//            cipherText = new byte[cipher.getOutputSize(plainTextBytes.length)];
-//            int encryptLength = cipher.update(plainTextBytes, 0,
-//                    plainTextBytes.length, cipherText, 0);
-//            encryptLength += cipher.doFinal(cipherText, encryptLength);
-//
-//            return bytesToHex(cipherText);
-//        } catch (NoSuchAlgorithmException | NoSuchProviderException
-//                | NoSuchPaddingException | InvalidKeyException
-//                | InvalidAlgorithmParameterException
-//                | UnsupportedEncodingException | ShortBufferException
-//                | IllegalBlockSizeException | BadPaddingException e) {
-//            e.printStackTrace();
-//            return null;
-//        }
-//    }
-//
-//    public static String decryptString(SecretKey key, String cipherText) {
-//        try {
-//            Key decryptionKey = new SecretKeySpec(key.getEncoded(),
-//                    key.getAlgorithm());
-//            IvParameterSpec ivSpec = new IvParameterSpec(iv);
-//            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding", "BC");
-//            byte[] cipherTextBytes = hexToBytes(cipherText);
-//            byte[] plainText;
-//
-//            cipher.init(Cipher.DECRYPT_MODE, decryptionKey, ivSpec);
-//            plainText = new byte[cipher.getOutputSize(cipherTextBytes.length)];
-//            int decryptLength = cipher.update(cipherTextBytes, 0,
-//                    cipherTextBytes.length, plainText, 0);
-//            decryptLength += cipher.doFinal(plainText, decryptLength);
-//
-//            return new String(plainText, "UTF-8");
-//        } catch (NoSuchAlgorithmException | NoSuchProviderException
-//                | NoSuchPaddingException | InvalidKeyException
-//                | InvalidAlgorithmParameterException
-//                | IllegalBlockSizeException | BadPaddingException
-//                | ShortBufferException | UnsupportedEncodingException e) {
-//            e.printStackTrace();
-//            return null;
-//        }
-//    }
-//
-//    public static String bytesToHex(byte[] data, int length) {
-//        String digits = "0123456789ABCDEF";
-//        StringBuffer buffer = new StringBuffer();
-//
-//        for (int i = 0; i != length; i++) {
-//            int v = data[i] & 0xff;
-//
-//            buffer.append(digits.charAt(v >> 4));
-//            buffer.append(digits.charAt(v & 0xf));
-//        }
-//
-//        return buffer.toString();
-//    }
-//
-//    public static String bytesToHex(byte[] data) {
-//        return bytesToHex(data, data.length);
-//    }
-//
-//    public static byte[] hexToBytes(String string) {
-//        int length = string.length();
-//        byte[] data = new byte[length / 2];
-//        for (int i = 0; i < length; i += 2) {
-//            data[i / 2] = (byte) ((Character.digit(string.charAt(i), 16) << 4) + Character
-//                    .digit(string.charAt(i + 1), 16));
-//        }
-//        return data;
-//    }
+        // Initialize two key pairs
+        KeyPair keyPairA = generateECKeys();
+        PublicKey pubA = keyPairA.getPublic();
+        System.out.println(pubA);
+//        String publicStringA = publicKeyToString(pubA);
+        String publicStringA = publicKeyToString(pubA);
+        System.out.println("Key A: " + publicStringA);
+        PublicKey newPubA = publicKeyFromString(publicStringA);
+        System.out.println("New key :" +  newPubA);
+        assert Arrays.equals(pubA.getEncoded(), newPubA.getEncoded());
+    }
 }
